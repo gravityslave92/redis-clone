@@ -2,6 +2,7 @@ package dict_bucket
 
 import (
 	"errors"
+	"github.com/spf13/cast"
 	"strings"
 	"sync"
 	"time"
@@ -13,28 +14,35 @@ var (
 	keyExpired          = errors.New("key has expired")
 )
 
-type dictBucket struct {
+type DictBucket struct {
 	mu      sync.Mutex
 	entries map[string]map[string]*dictNode
-
-	bucketSize    uint64
-	maxBucketSize uint64
-	dictBaseSize  uint64
 }
 
 type dictNode struct {
 	value string
 	ttl   time.Time
-	size  uint64
 }
 
-func newBucket() *dictBucket {
-	bucket := new(dictBucket)
+func NewBucket() *DictBucket {
+	bucket := new(DictBucket)
 	bucket.entries = make(map[string]map[string]*dictNode)
 	return bucket
 }
 
-func (b *dictBucket) Set(dictName, key, value string, expiration time.Duration) error {
+func (b *DictBucket) Set(args ...string) error {
+	if len(args) != 4 {
+		return errors.New("wrong arguments number")
+	}
+
+	dictName := args[0]
+	key := args[1]
+	value := args[2]
+	expiration := cast.ToDuration(args[3])
+	return b.set(dictName, key, value, expiration)
+}
+
+func (b *DictBucket) set(dictName, key, value string, expiration time.Duration) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -59,7 +67,7 @@ func (b *dictBucket) Set(dictName, key, value string, expiration time.Duration) 
 	}
 	// check expiration
 	if dictNode.ttl.Before(time.Now()) {
-		err := b.remove(dictName, key)
+		err := b.removeWithoutLock(dictName, key)
 		if err != nil {
 			return err
 		}
@@ -71,7 +79,17 @@ func (b *dictBucket) Set(dictName, key, value string, expiration time.Duration) 
 	return nil
 }
 
-func (b *dictBucket) Get(dictName, key string) (string, bool) {
+func (b *DictBucket) Get(args ...string) (string, bool) {
+	if len(args) != 2 {
+		return "", false
+	}
+
+	dictName := args[0]
+	key := args[1]
+	return b.get(dictName, key)
+}
+
+func (b *DictBucket) get(dictName, key string) (string, bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	// dictionary check
@@ -86,14 +104,23 @@ func (b *dictBucket) Get(dictName, key string) (string, bool) {
 	}
 
 	if dictNode.ttl.Before(time.Now()) {
-		// @tod remove
+		b.removeWithoutLock(dictName, key)
 		return "", false
 	}
 
 	return dictNode.value, true
 }
 
-func (b *dictBucket) Len(dictName string) int {
+func (b *DictBucket) Len(args ...string) int {
+	if len(args) != 1 {
+		return -1
+	}
+
+	dictName := args[0]
+	return b.len(dictName)
+}
+
+func (b *DictBucket) len(dictName string) int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -109,13 +136,22 @@ func (b *dictBucket) Len(dictName string) int {
 			continue
 		}
 
-		b.remove(dictName, key)
+		b.removeWithoutLock(dictName, key)
 	}
 
 	return count
 }
 
-func (b *dictBucket) Keys(dictName string) string {
+func (b *DictBucket) Keys(args ...string) string {
+	if len(args) != 1 {
+		return ""
+	}
+
+	dictName := args[0]
+	return b.keys(dictName)
+}
+
+func (b *DictBucket) keys(dictName string) string {
 	dictLen := b.Len(dictName)
 	if dictLen == -1 {
 		return ""
@@ -124,7 +160,7 @@ func (b *dictBucket) Keys(dictName string) string {
 	keys := make([]string, 0)
 	for key, value := range b.entries[dictName] {
 		if value.ttl.Before(time.Now()) {
-			b.remove(dictName, key)
+			b.removeWithoutLock(dictName, key)
 		}
 
 		keys = append(keys, key)
@@ -133,14 +169,24 @@ func (b *dictBucket) Keys(dictName string) string {
 	return strings.Join(keys, ", ")
 }
 
-func (b *dictBucket) Remove(dictName, key string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+func (b *DictBucket) Remove(args ...string) error {
+	if len(args) != 2 {
+		return errors.New("wrong arguments number")
+	}
 
+	dictName := args[0]
+	key := args[1]
 	return b.remove(dictName, key)
 }
 
-func (b *dictBucket) remove(dictName, key string) error {
+func (b *DictBucket) remove(dictName, key string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return b.removeWithoutLock(dictName, key)
+}
+
+func (b *DictBucket) removeWithoutLock(dictName, key string) error {
 	dict, ok := b.entries[dictName]
 	if !ok {
 		return dictionaryNotExists

@@ -9,8 +9,8 @@ import (
 )
 
 func TestListBucket_Set(t *testing.T) {
-	bucket := NewListBucket()
-	err := bucket.Set("hello", "world", 10*time.Minute)
+	bucket := NewBucket()
+	err := bucket.Set("hello", "world", "10m")
 
 	{
 		t.Log("Given a successful insert it should set node correctly")
@@ -22,7 +22,7 @@ func TestListBucket_Set(t *testing.T) {
 
 	{
 		t.Log("It should append second node correctly ")
-		err := bucket.Set("hello", "new world", 10*time.Minute)
+		err := bucket.Set("hello", "new world","10m")
 		assert.NoError(t, err)
 
 		list := bucket.entries["hello"]
@@ -36,7 +36,7 @@ func TestListBucket_Set(t *testing.T) {
 		t.Log("It should update TTL correctly")
 		oldTTL := bucket.entries["hello"].next.ttl
 
-		err := bucket.Set("hello", "new world", 200*time.Minute)
+		err := bucket.Set("hello", "new world", "200m")
 		assert.NoError(t, err)
 		assert.True(t, oldTTL != bucket.entries["hello"].next.ttl)
 	}
@@ -44,20 +44,19 @@ func TestListBucket_Set(t *testing.T) {
 }
 
 func TestListBucket_Get(t *testing.T) {
-	bucket := NewListBucket()
+	bucket := NewBucket()
 	testCases := setupTestCases(t, bucket)
 
-	
 	{
 		t.Log("Given a list it should return value by index")
-		values := bucket.List("test")
+		values := bucket.Keys("test")
 		for index, testCase := range testCases {
 			testCase := testCase // preserve variable copy within current closure
-			index := index
+			index := string(index)
 			t.Run(testCase.value, func(t *testing.T) {
 				t.Parallel()
 				value, ok := bucket.Get(testCase.key, index)
-				
+
 				assert.True(t, ok)
 				assert.Contains(t, values, value)
 			})
@@ -66,20 +65,20 @@ func TestListBucket_Get(t *testing.T) {
 
 	{
 		t.Log("It should not return value if key has expirad")
-		bucket.Set("test", "qwerty", 50*time.Microsecond)
-		<-time.After(51 * time.Microsecond)
-		_, ok := bucket.Get("test", 5)
+		bucket.Set("test", "qwerty", "50ms")
+		<-time.After(51 * time.Millisecond)
+		_, ok := bucket.Get("test", "5")
 		assert.False(t, ok)
 	}
 }
 
 func TestListBucket_List(t *testing.T) {
-	bucket := NewListBucket()
+	bucket := NewBucket()
 	testCases := setupTestCases(t, bucket)
 
 	{
 		t.Log("It should return all values")
-		values := strings.Split(bucket.List("test"), ", ")
+		values := strings.Split(bucket.Keys("test"), ", ")
 		for _, testCase := range testCases {
 			assert.Contains(t, values, testCase.value)
 		}
@@ -87,13 +86,13 @@ func TestListBucket_List(t *testing.T) {
 
 	{
 		t.Log("Given a non existing  list it should return empty string")
-		got := bucket.List("not exists")
+		got := bucket.Keys("not exists")
 		assert.Empty(t, got)
 	}
 }
 
 func TestListBucket_Len(t *testing.T) {
-	bucket := NewListBucket()
+	bucket := NewBucket()
 	testCases := setupTestCases(t, bucket)
 
 	{
@@ -113,12 +112,12 @@ func TestListBucket_Len(t *testing.T) {
 }
 
 func TestListBucket_Remove(t *testing.T) {
-	bucket := NewListBucket()
+	bucket := NewBucket()
 	testCases := setupTestCases(t, bucket)
 
 	for index, testCase := range testCases {
 		testCase := testCase
-		index := index
+		index := string(index)
 		t.Run(testCase.value, func(t *testing.T) {
 			t.Parallel()
 
@@ -128,21 +127,17 @@ func TestListBucket_Remove(t *testing.T) {
 	}
 }
 
-func setupTestCases(t *testing.T, bucket *listBucket) []struct {
-	key      string
-	value    string
-	duration time.Duration
+func setupTestCases(t *testing.T, bucket *ListBucket) []struct {
+	key, value, duration      string
 } {
 	testCases := []struct {
-		key      string
-		value    string
-		duration time.Duration
+		key, value, duration      string
 	}{
-		{"test", "cat", 10 * time.Minute},
-		{"test", "moose", 5 * time.Minute},
-		{"test", "red", 2 * time.Minute},
-		{"test", "home", 4 * time.Minute},
-		{"test", "evening", 33 * time.Minute},
+		{"test", "cat", "10m"},
+		{"test", "moose", "5m"},
+		{"test", "red", "2m"},
+		{"test", "home", "4m"},
+		{"test", "evening", "30m"},
 	}
 
 	for _, testCase := range testCases {

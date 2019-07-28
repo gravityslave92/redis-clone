@@ -2,12 +2,13 @@ package list_bucket
 
 import (
 	"errors"
+	"github.com/spf13/cast"
 	"strings"
 	"sync"
 	"time"
 )
 
-type listBucket struct {
+type ListBucket struct {
 	mu      sync.Mutex
 	entries map[string]*listNode
 }
@@ -18,14 +19,25 @@ type listNode struct {
 	ttl        time.Time
 }
 
-func NewListBucket() *listBucket {
-	bucket := new(listBucket)
+func NewBucket() *ListBucket {
+	bucket := new(ListBucket)
 	bucket.entries = make(map[string]*listNode)
 
 	return bucket
 }
 
-func (b *listBucket) Set(key, value string, expiration time.Duration) error {
+func (b *ListBucket) Set(args ...string) error {
+	if len(args) != 3 {
+		return errors.New("wrong number of arguments")
+	}
+	
+	key := args[0]
+	value := args[1]
+	expiration := cast.ToDuration(args[2])
+	return b.set(key, value, expiration)
+}
+
+func (b *ListBucket) set(key, value string, expiration time.Duration) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -62,7 +74,18 @@ func (b *listBucket) Set(key, value string, expiration time.Duration) error {
 	return nil
 }
 
-func (b *listBucket) Get(key string, indx int) (string, bool) {
+// generic Get
+func (b *ListBucket) Get(args ...string) (string, bool) {
+	if len(args) != 2 {
+		return "", false
+	}
+
+	dictName := args[0]
+	index := cast.ToInt(args[1])
+	return b.get(dictName, index)
+}
+
+func (b *ListBucket) get(key string, indx int) (string, bool) {
 	listLen := b.Len(key)
 	if listLen == -1 {
 		return "", false
@@ -76,8 +99,13 @@ func (b *listBucket) Get(key string, indx int) (string, bool) {
 	defer b.mu.Unlock()
 	// key has only one list at all
 	firstList := b.entries[key]
-	if indx == 0 {
+	if indx == 0 && firstList.ttl.After(time.Now()) {
 		return firstList.value, true
+	}
+	// key has only one list at all and it has expired
+	if indx == 0 && firstList.ttl.Before(time.Now()) {
+		b.removeWithoutLock(key, firstList.value)
+		return "", false
 	}
 
 	count := 0
@@ -93,14 +121,24 @@ func (b *listBucket) Get(key string, indx int) (string, bool) {
 	}
 
 	if listNeeded.ttl.Before(time.Now()) {
-		b.remove(key, listNeeded.value)
+		b.removeWithoutLock(key, listNeeded.value)
 		return "", false
 	}
 
 	return listNeeded.value, true
 }
 
-func (b *listBucket) Len(key string) int {
+// generic len
+func (b *ListBucket) Len(args ...string) int {
+	if len(args) != 1 {
+		return -1
+	}
+
+	key := args[0]
+	return b.len(key)
+}
+
+func (b *ListBucket) len(key string) int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -117,7 +155,16 @@ func (b *listBucket) Len(key string) int {
 	return count
 }
 
-func (b *listBucket) List(key string) string {
+func (b *ListBucket) Keys(args ...string) string {
+	if len(args) != 1 {
+		return ""
+	}
+
+	key := args[0]
+	return b.keys(key)
+}
+
+func (b *ListBucket) keys(key string) string {
 	listLen := b.Len(key)
 	if listLen == -1 {
 		return ""
@@ -132,7 +179,7 @@ func (b *listBucket) List(key string) string {
 	values = append(values, firstList.value)
 	for list := firstList.next; list != nil; list = list.next {
 		if list.ttl.Before(time.Now()) {
-			b.remove(key, list.value)
+			b.removeWithoutLock(key, list.value)
 			continue
 		}
 		values = append(values, list.value)
@@ -141,7 +188,17 @@ func (b *listBucket) List(key string) string {
 	return strings.Join(values, ", ")
 }
 
-func (b *listBucket) Remove(key string, indx int) error {
+func (b *ListBucket) Remove(args ...string) error {
+	if len(args) != 2 {
+		return errors.New("wrong arguments number")
+	}
+
+	key := args[0]
+	indx := cast.ToInt(args[1])
+	return b.remove(key, indx)
+}
+
+func (b *ListBucket) remove(key string, indx int) error {
 	listLen := b.Len(key)
 	if listLen == -1 {
 		return errors.New("key does not exits or has been deleted already")
@@ -179,7 +236,7 @@ func (b *listBucket) Remove(key string, indx int) error {
 	return nil
 }
 
-func (b *listBucket) remove(key, value string) {
+func (b *ListBucket) removeWithoutLock(key, value string) {
 	firstList := b.entries[key]
 	if firstList.value == value {
 		firstList.next.prev = nil

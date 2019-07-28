@@ -9,9 +9,9 @@ import (
 )
 
 func TestDictBucket_Set(t *testing.T) {
-	bucket := newBucket()
+	bucket := NewBucket()
 	{
-		bucket.Set("test", "hello", "world", 10*time.Minute)
+		bucket.Set("test", "hello", "world", "10m")
 		assert.NotNil(t, bucket.entries["test"])
 		assert.NotNil(t, bucket.entries["test"]["hello"])
 		assert.EqualValues(t, bucket.entries["test"]["hello"].value, "world")
@@ -20,7 +20,7 @@ func TestDictBucket_Set(t *testing.T) {
 	{
 		t.Log("Given a second attempt it should renew ttl correctly")
 		oldTTL := bucket.entries["test"]["hello"].ttl
-		err := bucket.Set("test", "hello", "world", 100*time.Minute)
+		err := bucket.Set("test", "hello", "world", "10m")
 		assert.NoError(t, err)
 		assert.True(t, oldTTL != bucket.entries["test"]["hello"].ttl)
 
@@ -28,8 +28,8 @@ func TestDictBucket_Set(t *testing.T) {
 }
 
 func TestDictBucket_Get(t *testing.T) {
-	bucket := newBucket()
-	testCases := setupTestCases(t, bucket)
+	bucket := NewBucket()
+  testCases := setupTestCases(t, bucket)
 
 	{
 		t.Log("Given a dict it should return value by key")
@@ -44,11 +44,12 @@ func TestDictBucket_Get(t *testing.T) {
 			})
 		}
 	}
-
+ 
 	{
 		t.Log("It should not return value if key has expirad")
-		bucket.Set("dict", "qwerty", "zxc", 50*time.Microsecond)
-		<-time.After(51 * time.Microsecond)
+		bucket.Set("dict", "qwerty", "zxc", "50ms")
+		fmt.Println(bucket.entries["dict"]["qwerty"].ttl)
+		<-time.After(559 * time.Millisecond)
 		value, ok := bucket.Get("dict", "qwerty")
 		assert.False(t, ok)
 		assert.EqualValues(t, "", value)
@@ -56,13 +57,13 @@ func TestDictBucket_Get(t *testing.T) {
 }
 
 func TestDictBucket_Len(t *testing.T) {
-	bucket := newBucket()
+	bucket := NewBucket()
 	setupTestCases(t, bucket)
 	assert.EqualValues(t, bucket.Len("dict"), 5)
 
 	{
 		t.Log("Given an expired element it should return correct length")
-		bucket.Set("dict", "i will expire", "soon", 50*time.Millisecond)
+		bucket.Set("dict", "i will expire", "soon", "50ms")
 		assert.EqualValues(t, bucket.Len("dict"), 6)
 		<-time.After(51 * time.Millisecond)
 		assert.EqualValues(t, bucket.Len("dict"), 5)
@@ -70,7 +71,7 @@ func TestDictBucket_Len(t *testing.T) {
 }
 
 func TestDictBucket_Remove(t *testing.T) {
-	bucket := newBucket()
+	bucket := NewBucket()
 	testCases := setupTestCases(t, bucket)
 
 	{
@@ -91,7 +92,7 @@ func TestDictBucket_Remove(t *testing.T) {
 }
 
 func TestDictBucket_Keys(t *testing.T) {
-	bucket := newBucket()
+	bucket := NewBucket()
 	testCases := setupTestCases(t, bucket)
 
 	{
@@ -103,7 +104,7 @@ func TestDictBucket_Keys(t *testing.T) {
 
 	{
 		expected := "i will expire"
-		bucket.Set("dict", expected, "soon", 50*time.Millisecond)
+		bucket.Set("dict", expected, "soon", "50ms")
 		keys := strings.Split(bucket.Keys("dict"), ", ")
 
 		assert.Contains(t, keys, expected)
@@ -113,23 +114,17 @@ func TestDictBucket_Keys(t *testing.T) {
 	}
 }
 
-func setupTestCases(t *testing.T, bucket *dictBucket) []struct {
-	dictKey  string
-	key      string
-	value    string
-	duration time.Duration
+func setupTestCases(t *testing.T, bucket *DictBucket) []struct {
+	dictKey, key, value, duration  string
 } {
 	testCases := []struct {
-		dictKey  string
-		key      string
-		value    string
-		duration time.Duration
+		dictKey, key, value, duration  string
 	}{
-		{"dict", "test", "cat", 10 * time.Minute},
-		{"dict", "world", "moose", 5 * time.Minute},
-		{"dict", "green", "red", 2 * time.Minute},
-		{"dict", "sweet", "home", 4 * time.Minute},
-		{"dict", "tomorrow", "evening", 33 * time.Minute},
+		{"dict", "test", "cat", "10m"},
+		{"dict", "world", "moose", "5m"},
+		{"dict", "green", "red", "2m"},
+		{"dict", "sweet", "home", "4m"},
+		{"dict", "tomorrow", "evening", "33m"},
 	}
 
 	for _, testCase := range testCases {

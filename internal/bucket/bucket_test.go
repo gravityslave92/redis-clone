@@ -10,7 +10,7 @@ import (
 
 func TestBucket_Set(t *testing.T) {
 	buck := NewBucket()
-	err := buck.Set("hello", "world", 10*time.Minute)
+	err := buck.Set("hello", "world", "10m")
 	assert.NoError(t, err)
 
 	{
@@ -20,7 +20,7 @@ func TestBucket_Set(t *testing.T) {
 
 	{
 		t.Log("Given a bucket with at least one node it should append  node after calling bucket#Set() func")
-		buck.Set("world", "hello", 10*time.Minute)
+		buck.Set("world", "hello", "10m")
 		assert.Contains(t, buck.entries, "world", fmt.Sprintf("expected %q to be within entries map keys", "world"))
 
 	}
@@ -30,7 +30,7 @@ func TestBucket_Set(t *testing.T) {
 		oldTTL := buck.entries["hello"].ttl
 		oldValue := buck.entries["hello"].value
 
-		err := buck.Set("hello", "new world", 200*time.Minute)
+		err := buck.Set("hello", "new world", "200m")
 		assert.NoError(t, err)
 		new := buck.entries["hello"]
 
@@ -56,8 +56,8 @@ func TestBucket_Get(t *testing.T) {
 
 	{
 		t.Log("It should not return  value if key has expired")
-		buck.Set("testt", "tac", 50*time.Microsecond)
-		<-time.After(51 * time.Microsecond)
+		buck.Set("testt", "tac", "50ms")
+		<-time.After(51 * time.Millisecond)
 		_, ok := buck.Get("testt")
 		assert.False(t, ok)
 	}
@@ -84,27 +84,33 @@ func TestBucket_Remove(t *testing.T) {
 			t.Parallel()
 			ok := bucket.Remove(testCase.key)
 
-			assert.True(t, ok)
+			assert.NoError(t, ok)
 			assert.NotContains(t, bucket.entries, testCase.key)
 		})
 	}
 }
 
+func TestBucket_Len(t *testing.T) {
+	bucket := NewBucket()
+	assert.Zero(t, bucket.Len())
+	assert.EqualValues(t, bucket.Len("test"), -1.)
+}
+
 func setupTestCases(t *testing.T, bucket *Bucket) []struct {
 	key      string
 	value    string
-	duration time.Duration
+	duration string
 } {
 	testCases := []struct {
 		key      string
 		value    string
-		duration time.Duration
+		duration string
 	}{
-		{"test", "cat", 10 * time.Minute},
-		{"world", "moose", 5 * time.Minute},
-		{"green", "red", 2 * time.Minute},
-		{"sweet", "home", 4 * time.Minute},
-		{"tomorrow", "evening", 33 * time.Minute},
+		{"test", "cat", "10m"},
+		{"world", "moose", "5m"},
+		{"green", "red", "2m"},
+		{"sweet", "home", "4m"},
+		{"tomorrow", "evening", "30m"},
 	}
 
 	for _, testCase := range testCases {
