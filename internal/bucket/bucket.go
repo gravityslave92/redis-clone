@@ -27,7 +27,7 @@ func NewBucket() *Bucket {
 	return bucket
 }
 
-// generic Set
+// Set for interface
 func (b *Bucket) Set(args ...string) error {
 	if len(args) != 3 {
 		return errors.New("wrong number of arguments")
@@ -60,7 +60,7 @@ func (b *Bucket) set(key, value string, expiration time.Duration) error {
 	return nil
 }
 
-// generic get for interface implementation
+// get for interface implementation
 func (b *Bucket) Get(args ...string) (string, bool) {
 	key := args[0]
 	return b.get(key)
@@ -84,7 +84,7 @@ func (b *Bucket) get(key string) (string, bool) {
 	return n.value, true
 }
 
-// generic keys
+// Keys for interface impl
 func (b *Bucket) Keys(args ...string) string {
 	if len(args) != 0 {
 		return ""
@@ -108,21 +108,21 @@ func (b *Bucket) keys() string {
 	return strings.Join(keys, ", ")
 }
 
-func (b *Bucket) Len(args ...string) int  {
+func (b *Bucket) Len(args ...string) int {
 	fmt.Println(args)
 	fmt.Println(len(args))
 	if len(args) != 0 {
-		return  -1
+		return -1
 	}
-	
+
 	return b.len()
 }
 
-func (b *Bucket) len() int  {
+func (b *Bucket) len() int {
 	return len(b.entries)
 }
 
-// generic remove
+// remove interface impl
 func (b *Bucket) Remove(args ...string) error {
 	if len(args) != 1 {
 		return errors.New("wrong arguments number")

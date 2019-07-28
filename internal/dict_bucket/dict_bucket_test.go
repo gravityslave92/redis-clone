@@ -29,7 +29,7 @@ func TestDictBucket_Set(t *testing.T) {
 
 func TestDictBucket_Get(t *testing.T) {
 	bucket := NewBucket()
-  testCases := setupTestCases(t, bucket)
+	testCases := setupTestCases(t, bucket)
 
 	{
 		t.Log("Given a dict it should return value by key")
@@ -44,7 +44,7 @@ func TestDictBucket_Get(t *testing.T) {
 			})
 		}
 	}
- 
+
 	{
 		t.Log("It should not return value if key has expirad")
 		bucket.Set("dict", "qwerty", "zxc", "50ms")
@@ -115,10 +115,10 @@ func TestDictBucket_Keys(t *testing.T) {
 }
 
 func setupTestCases(t *testing.T, bucket *DictBucket) []struct {
-	dictKey, key, value, duration  string
+	dictKey, key, value, duration string
 } {
 	testCases := []struct {
-		dictKey, key, value, duration  string
+		dictKey, key, value, duration string
 	}{
 		{"dict", "test", "cat", "10m"},
 		{"dict", "world", "moose", "5m"},

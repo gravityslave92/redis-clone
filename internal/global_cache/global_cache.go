@@ -9,8 +9,6 @@ import (
 	"sync"
 )
 
-const defaultNumberOfBuckets = 32
-
 type hashFunc func(string) uint
 
 type GlobalCache struct {
@@ -20,7 +18,7 @@ type GlobalCache struct {
 	dictBuckets []*dict_bucket.DictBucket
 }
 
-type IBucket interface {
+type iBucket interface {
 	Get(...string) (string, bool)
 	Set(...string) error
 	Keys(...string) string
@@ -28,14 +26,14 @@ type IBucket interface {
 	Remove(...string) error
 }
 
-func NewCache() *GlobalCache {
+func NewCache(numBuckets int) *GlobalCache {
 	cache := new(GlobalCache)
-	cache.hashFunc = bucketHashFunc(defaultNumberOfBuckets)
-	cache.buckets = make([]*bucket.Bucket, defaultNumberOfBuckets, defaultNumberOfBuckets)
-	cache.listBuckets = make([]*list_bucket.ListBucket, defaultNumberOfBuckets, defaultNumberOfBuckets)
-	cache.dictBuckets = make([]*dict_bucket.DictBucket, defaultNumberOfBuckets, defaultNumberOfBuckets)
+	cache.hashFunc = bucketHashFunc(numBuckets)
+	cache.buckets = make([]*bucket.Bucket, numBuckets, numBuckets)
+	cache.listBuckets = make([]*list_bucket.ListBucket, numBuckets, numBuckets)
+	cache.dictBuckets = make([]*dict_bucket.DictBucket, numBuckets, numBuckets)
 
-	for i := 0; i < defaultNumberOfBuckets; i++ {
+	for i := 0; i < numBuckets; i++ {
 		cache.buckets[i] = bucket.NewBucket()
 		cache.dictBuckets[i] = dict_bucket.NewBucket()
 		cache.listBuckets[i] = list_bucket.NewBucket()
@@ -99,7 +97,7 @@ func (cache *GlobalCache) ProcessCommand(args []string) string {
 	return fmt.Sprintf("%s\n", reply)
 }
 
-func (cache *GlobalCache) pickBucket(command, key string) IBucket {
+func (cache *GlobalCache) pickBucket(command, key string) iBucket {
 	bucketIndex := cache.hashFunc(key)
 	switch {
 	// ZGET ZSET ZLEN ZREM ZKEYS
@@ -168,7 +166,7 @@ func (cache *GlobalCache) totalBucketsKeys() string {
 
 // SDBM hash function implemented in golang
 // http://www.partow.net/programming/hashfunctions/index.html#SDBMHashFunction
-func bucketHashFunc(numBuckets uint) func(string) uint {
+func bucketHashFunc(numBuckets int) func(string) uint {
 	return func(key string) uint {
 		var hash uint64 = 0
 		for _, char := range key {

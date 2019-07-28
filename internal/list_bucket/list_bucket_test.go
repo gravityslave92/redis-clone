@@ -22,7 +22,7 @@ func TestListBucket_Set(t *testing.T) {
 
 	{
 		t.Log("It should append second node correctly ")
-		err := bucket.Set("hello", "new world","10m")
+		err := bucket.Set("hello", "new world", "10m")
 		assert.NoError(t, err)
 
 		list := bucket.entries["hello"]
@@ -128,10 +128,10 @@ func TestListBucket_Remove(t *testing.T) {
 }
 
 func setupTestCases(t *testing.T, bucket *ListBucket) []struct {
-	key, value, duration      string
+	key, value, duration string
 } {
 	testCases := []struct {
-		key, value, duration      string
+		key, value, duration string
 	}{
 		{"test", "cat", "10m"},
 		{"test", "moose", "5m"},

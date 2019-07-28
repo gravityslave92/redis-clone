@@ -15,12 +15,12 @@ type Server struct {
 	cache            *global_cache.GlobalCache
 }
 
-func NewServer(port string, passwordRequired bool, password string) *Server {
+func NewServer(port string, passwordRequired bool, password string, bucketNum int) *Server {
 	return &Server{
 		Port:             port,
 		PasswordRequired: passwordRequired,
 		Password:         password,
-		cache:            global_cache.NewCache(),
+		cache:            global_cache.NewCache(bucketNum),
 	}
 }
 
@@ -48,10 +48,11 @@ func (s *Server) Run() {
 }
 
 func handleConn(conn net.Conn, server *Server) {
+	defer conn.Close()
 	if server.PasswordRequired {
 		authorizeConnection(conn, server.Password)
 	}
-	
+
 	// accept inputs
 	parseRequest(conn, server)
 }
@@ -88,6 +89,11 @@ func parseRequest(conn net.Conn, server *Server) {
 		if args == nil {
 			conn.Write([]byte("Please, send non-empty message"))
 			continue
+		}
+
+		if args[0] == "QUIT" || args[0] == "EXIT" {
+			// trigger connection close
+			break
 		}
 
 		response := server.cache.ProcessCommand(args)

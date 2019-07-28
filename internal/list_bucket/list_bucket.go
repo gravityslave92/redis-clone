@@ -30,7 +30,7 @@ func (b *ListBucket) Set(args ...string) error {
 	if len(args) != 3 {
 		return errors.New("wrong number of arguments")
 	}
-	
+
 	key := args[0]
 	value := args[1]
 	expiration := cast.ToDuration(args[2])
