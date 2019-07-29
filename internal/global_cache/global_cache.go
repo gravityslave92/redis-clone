@@ -62,6 +62,7 @@ func (cache *GlobalCache) ProcessCommand(args []string) string {
 		} else {
 			reply = "value does not exist for given arguments"
 		}
+		
 	case strings.HasSuffix(command, "SET"):
 		if err := bucket.Set(args[1:]...); err != nil {
 			reply = err.Error()
