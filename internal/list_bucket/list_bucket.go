@@ -128,7 +128,7 @@ func (b *ListBucket) get(key string, indx int) (string, bool) {
 	return listNeeded.value, true
 }
 
-// generic len
+//  len for interface impl
 func (b *ListBucket) Len(args ...string) int {
 	if len(args) != 1 {
 		return -1

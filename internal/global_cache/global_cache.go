@@ -1,21 +1,25 @@
 package global_cache
 
 import (
+	"encoding/csv"
 	"fmt"
 	"redis_like_in_memory_db/internal/bucket"
 	"redis_like_in_memory_db/internal/dict_bucket"
 	"redis_like_in_memory_db/internal/list_bucket"
+	"redis_like_in_memory_db/internal/tx_logger"
 	"strings"
 	"sync"
+	"time"
 )
 
 type hashFunc func(string) uint
 
 type GlobalCache struct {
 	hashFunc
-	buckets     []*bucket.Bucket
-	listBuckets []*list_bucket.ListBucket
-	dictBuckets []*dict_bucket.DictBucket
+	buckets           []*bucket.Bucket
+	listBuckets       []*list_bucket.ListBucket
+	dictBuckets       []*dict_bucket.DictBucket
+	transactionLogger *tx_logger.TXLogger
 }
 
 type iBucket interface {
@@ -26,7 +30,7 @@ type iBucket interface {
 	Remove(...string) error
 }
 
-func NewCache(numBuckets int) *GlobalCache {
+func NewCache(numBuckets int, enableLogging bool) *GlobalCache {
 	cache := new(GlobalCache)
 	cache.hashFunc = bucketHashFunc(numBuckets)
 	cache.buckets = make([]*bucket.Bucket, numBuckets, numBuckets)
@@ -38,7 +42,17 @@ func NewCache(numBuckets int) *GlobalCache {
 		cache.dictBuckets[i] = dict_bucket.NewBucket()
 		cache.listBuckets[i] = list_bucket.NewBucket()
 	}
+
+	if enableLogging {
+		cache.transactionLogger = tx_logger.NewTXLogger("tx_log")
+		go cache.transactionLogger.ProcessLogWrite()
+	}
 	return cache
+}
+
+func (cache *GlobalCache) PerformCommand(request []byte) string {
+	args := cache.parseMessage(string(request))
+	return cache.ProcessCommand(args)
 }
 
 func (cache *GlobalCache) ProcessCommand(args []string) string {
@@ -47,7 +61,6 @@ func (cache *GlobalCache) ProcessCommand(args []string) string {
 	}
 
 	firstArg := ""
-
 	command := args[0]
 	if len(args) > 1 {
 		firstArg = args[1]
@@ -62,11 +75,12 @@ func (cache *GlobalCache) ProcessCommand(args []string) string {
 		} else {
 			reply = "value does not exist for given arguments"
 		}
-		
+
 	case strings.HasSuffix(command, "SET"):
 		if err := bucket.Set(args[1:]...); err != nil {
 			reply = err.Error()
 		} else {
+			cache.writeToLog(args)
 			reply = "Success"
 		}
 
@@ -88,6 +102,7 @@ func (cache *GlobalCache) ProcessCommand(args []string) string {
 		if err := bucket.Remove(args[1:]...); err != nil {
 			reply = err.Error()
 		} else {
+			cache.writeToLog(args)
 			reply = "Success"
 		}
 
@@ -163,6 +178,37 @@ func (cache *GlobalCache) totalBucketsKeys() string {
 	}
 
 	return strings.Join(result, ", ")
+}
+
+func (cache *GlobalCache) writeToLog(args []string) {
+	if cache.transactionLogger == nil {
+		// logging disabled
+		return
+	}
+
+	go func() {
+		cache.transactionLogger.LogChan <- fmt.Sprintf("%d %s\n", time.Now().Unix(), args)
+	}()
+}
+
+func (cache *GlobalCache) parseMessage(msg string) []string {
+	result := make([]string, 0)
+	csvReader := csv.NewReader(strings.NewReader(msg))
+	csvReader.Comma = ' ' // space
+	fields, err := csvReader.Read()
+	if err != nil {
+		return nil
+	}
+
+	for _, field := range fields {
+		if field == "" {
+			continue
+		}
+
+		result = append(result, field)
+	}
+
+	return result
 }
 
 // SDBM hash function implemented in golang

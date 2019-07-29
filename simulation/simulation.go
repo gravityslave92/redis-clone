@@ -12,7 +12,6 @@ import (
 	"time"
 )
 
-
 func main() {
 	numGoRoutines := flag.Int("numGoRoutines", 64, "Number of  simultaneous request to the cache.")
 	numBuckets := flag.Int("numBuckets", 64, "Number of buckets for every bucket type")

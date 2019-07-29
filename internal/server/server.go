@@ -1,7 +1,7 @@
 package server
 
 import (
-	"encoding/csv"
+	"bytes"
 	"fmt"
 	"net"
 	"redis_like_in_memory_db/internal/global_cache"
@@ -15,12 +15,12 @@ type Server struct {
 	cache            *global_cache.GlobalCache
 }
 
-func NewServer(port string, passwordRequired bool, password string, bucketNum int) *Server {
+func NewServer(port string, passwordRequired, enableLogging bool, password string, bucketNum int) *Server {
 	return &Server{
 		Port:             port,
 		PasswordRequired: passwordRequired,
 		Password:         password,
-		cache:            global_cache.NewCache(bucketNum),
+		cache:            global_cache.NewCache(bucketNum, enableLogging),
 	}
 }
 
@@ -85,38 +85,11 @@ func parseRequest(conn net.Conn, server *Server) {
 			return
 		}
 
-		args := parseMessage(string(buf[0:n]))
-		if args == nil {
-			conn.Write([]byte("Please, send non-empty message"))
-			continue
-		}
-
-		if args[0] == "QUIT" || args[0] == "EXIT" {
-			// trigger connection close
+		if bytes.HasPrefix(buf[:], []byte("QUIT")) || bytes.HasPrefix(buf[:], []byte("EXIT")) {
 			break
 		}
 
-		response := server.cache.ProcessCommand(args)
+		response := server.cache.PerformCommand(buf[0:n])
 		conn.Write([]byte(response))
 	}
-}
-
-func parseMessage(msg string) []string {
-	result := make([]string, 0)
-	csvReader := csv.NewReader(strings.NewReader(msg))
-	csvReader.Comma = ' ' // space
-	fields, err := csvReader.Read()
-	if err != nil {
-		return nil
-	}
-
-	for _, field := range fields {
-		if field == "" {
-			continue
-		}
-
-		result = append(result, field)
-	}
-
-	return result
 }

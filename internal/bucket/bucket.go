@@ -2,12 +2,13 @@ package bucket
 
 import (
 	"errors"
-	"fmt"
 	"github.com/spf13/cast"
 	"strings"
 	"sync"
 	"time"
 )
+
+var wrongNumber = errors.New("wrong number of arguments")
 
 type Bucket struct {
 	mu      sync.Mutex
@@ -30,7 +31,7 @@ func NewBucket() *Bucket {
 // Set for interface
 func (b *Bucket) Set(args ...string) error {
 	if len(args) != 3 {
-		return errors.New("wrong number of arguments")
+		return wrongNumber
 	}
 
 	key := args[0]
@@ -109,8 +110,6 @@ func (b *Bucket) keys() string {
 }
 
 func (b *Bucket) Len(args ...string) int {
-	fmt.Println(args)
-	fmt.Println(len(args))
 	if len(args) != 0 {
 		return -1
 	}
@@ -125,7 +124,7 @@ func (b *Bucket) len() int {
 // remove interface impl
 func (b *Bucket) Remove(args ...string) error {
 	if len(args) != 1 {
-		return errors.New("wrong arguments number")
+		return wrongNumber
 	}
 
 	key := args[0]
@@ -145,5 +144,5 @@ func (b *Bucket) removeWithoutLock(key string) error {
 		return nil
 	}
 
-	return errors.New("key not exists")
+	return errors.New("key does not exist")
 }

@@ -6,7 +6,7 @@ import (
 )
 
 func TestGlobalCache_ProcessCommand_keyValue(t *testing.T) {
-	cache := NewCache(32)
+	cache := NewCache(32, false)
 
 	{
 		reply := cache.ProcessCommand([]string{"SET", "testArg", "hello world", "100m"})
@@ -35,7 +35,7 @@ func TestGlobalCache_ProcessCommand_keyValue(t *testing.T) {
 }
 
 func TestGlobalCache_ProcessCommand_lists(t *testing.T) {
-	cache := NewCache(32)
+	cache := NewCache(32, false)
 	{
 		reply := cache.ProcessCommand([]string{"ZSET", "testArr", "hello world", "100m"})
 		assert.EqualValues(t, "Success\n", reply)
@@ -59,7 +59,7 @@ func TestGlobalCache_ProcessCommand_lists(t *testing.T) {
 }
 
 func TestGlobalCache_ProcessCommand_dictionary(t *testing.T) {
-	cache := NewCache(32)
+	cache := NewCache(32, false)
 	{
 		reply := cache.ProcessCommand([]string{"DSET", "testDict", "random key", "hello world", "100m"})
 		assert.EqualValues(t, "Success\n", reply)
