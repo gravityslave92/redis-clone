@@ -19,6 +19,8 @@ type listNode struct {
 	ttl        time.Time
 }
 
+var wrongArgsNum = errors.New("wrong number of arguments")
+
 func NewBucket() *ListBucket {
 	bucket := new(ListBucket)
 	bucket.entries = make(map[string]*listNode)
@@ -28,7 +30,7 @@ func NewBucket() *ListBucket {
 
 func (b *ListBucket) Set(args ...string) error {
 	if len(args) != 3 {
-		return errors.New("wrong number of arguments")
+		return wrongArgsNum
 	}
 
 	key := args[0]
@@ -190,7 +192,7 @@ func (b *ListBucket) keys(key string) string {
 
 func (b *ListBucket) Remove(args ...string) error {
 	if len(args) != 2 {
-		return errors.New("wrong arguments number")
+		return wrongArgsNum
 	}
 
 	key := args[0]

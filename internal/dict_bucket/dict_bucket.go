@@ -12,6 +12,7 @@ var (
 	dictionaryNotExists = errors.New("dictionary does not exist")
 	keyNotFound         = errors.New("key not found")
 	keyExpired          = errors.New("key has expired")
+	wrongArgNum         = errors.New("wrong arguments number")
 )
 
 type DictBucket struct {
@@ -32,7 +33,7 @@ func NewBucket() *DictBucket {
 
 func (b *DictBucket) Set(args ...string) error {
 	if len(args) != 4 {
-		return errors.New("wrong arguments number")
+		return wrongArgNum
 	}
 
 	dictName := args[0]
@@ -171,7 +172,7 @@ func (b *DictBucket) keys(dictName string) string {
 
 func (b *DictBucket) Remove(args ...string) error {
 	if len(args) != 2 {
-		return errors.New("wrong arguments number")
+		return wrongArgNum
 	}
 
 	dictName := args[0]

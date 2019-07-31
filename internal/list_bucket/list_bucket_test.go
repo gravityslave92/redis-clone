@@ -64,7 +64,7 @@ func TestListBucket_Get(t *testing.T) {
 	}
 
 	{
-		t.Log("It should not return value if key has expirad")
+		t.Log("It should not return value if key has expired")
 		bucket.Set("test", "qwerty", "50ms")
 		<-time.After(51 * time.Millisecond)
 		_, ok := bucket.Get("test", "5")

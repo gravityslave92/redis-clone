@@ -13,7 +13,7 @@ func main() {
 	enableLogging := flag.Bool("logging", true, "enable commands logging")
 	flag.Parse()
 
-		runtime.GOMAXPROCS(runtime.NumCPU())
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	server := server.NewServer(*port, *auth, *enableLogging, "password", *numBuckets)
 	server.Run()
